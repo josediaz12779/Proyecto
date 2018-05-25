@@ -32,7 +32,10 @@ from pox.lib.addresses import IPAddr, EthAddr
 import time
 
 log = core.getLogger()
-ip_para_bloquear = "10.0.0.1"
+ICMP = pkt.ipv4.ICMP_PROTOCOL
+TCP = pkt.ipv4.TCP_PROTOCOL
+UDP = pkt.ipv4.UDP_PROTOCOL
+#ip_para_bloquear = "10.0.0.1"
 
 
 # We don't want to flood immediately when a switch connects.
@@ -110,7 +113,7 @@ class LearningSwitch (object):
 
     # Recuerde que crearemos el match a partir del paquete
     packet = event.parsed
-    print "Bloquear mensaje"
+    print "Mensaje bloqueado"
 
     # Este mensaje de tipo "flow_mod" modifica la tabla de flujos del switch
     msg = of.ofp_flow_mod()
@@ -191,43 +194,48 @@ class LearningSwitch (object):
     # Note el siguiente if, es imporante porque en este evento llegan TODOS los paquetes que pasen por la red (incluyendo paquetes ARP que no son IP)
     # Por esta razon, solo aplicamos reglas a los paquetes IP 
     # Nota: Este if no aplicaria para el proyecto que tiene el proyecto "arp defense" por obvias razones
-    if packet.type == pkt.ethernet.IP_TYPE:
    
+    if packet.type == pkt.ethernet.IP_TYPE:   
         # El evento packet_in recibe un objeto llamado "evento", este evento contiene informacion importante
         # 1. El puerto por el que ingresa el paquete, que es necesario para realizar el enrutamiento
         # 2. El paquete que produjo el evento, lo que hace este codigo es parsear ese paquete, es decir, obtener los encabezados necesarios del paquete para identificar
-        #    si debe o no bloquear el flujo
- 
+        #    si debe o no bloquear el flujo 
         ip_packet = packet.payload
-        if ip_packet.protocol == pkt.ipv4.ICMP_PROTOCOL:
-	#if ip_packet.protocol == 1:
-       	  icmp_packet = ip_packet.payload
+        if ip_packet.protocol == ICMP:
+	  icmp_packet = ip_packet.payload
           # El paquete que recibimos es de tipo "Ethernet", asi que su carga util sera un paquete IP (revisar modelo OSI)
           # El paquete ip_packet ya es un paquete IP, por lo tal posee un campo que es "direccion IP de origen" srcip
           ip_origen = ip_packet.srcip
-	  icmp_code = icmp_packet.code
+	  ip_destino = ip_packet.dstip		
+	  #icmp_code = icmp_packet.code
           print "IP Origen: ", ip_origen
-	  print "Codigo ICMP: ", icmp_code
-
+	  print "IP Destino: ", ip_destino
+	  #print "Codigo ICMP: ", icmp_code
           # Note la funcion IPAddr, se usa para manejar direcciones IP, en este caso le entregamos un string y nos devuelve un objeto de tipo direccion IP
           #if (ip_origen == IPAddr(ip_para_bloquear)): 
           # Si el paquete que genero este evento coincide con nuestra condicion, invocamos la funcion de bloquear
-
           self.bloquear_paquete(event)
           return
 
-        if ip_packet.protocol == pkt.ipv4.TCP_PROTOCOL:
+        if ip_packet.protocol == TCP:
 	  tcp_packet = ip_packet.payload
 	  ip_origen = ip_packet.srcip
-	  print "IP Origen es: ", ip_origen
+	  ip_destino = ip_packet.dstip
+	  print "IP Origen: ", ip_origen
+	  print "IP Destino: ", ip_destino
+	  print "La prueba es de tipo TCP"
 	  self.bloquear_paquete(event)
 	  return
-        #self.mostrar_paquete(event)
-        # return
-   # else:
-       # print "Not IP packet"
-	#print payload2
 
+	if ip_packet.protocol == UDP:
+	  udp_packet = ip_packet.payload
+	  ip_origen = ip_packet.srcip
+	  ip_destino = ip_packet.dstip
+	  print "IP Origen: ", ip_origen
+	  print "IP Destino: ", ip_destino
+	  print "La prueba es de tipo UDP"
+	  self.bloquear_paquete(event)
+          return   
 
     if packet.dst.is_multicast:
       flood() # 3a
